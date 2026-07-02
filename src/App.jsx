@@ -67,30 +67,30 @@ function splitChapters(text) {
 }
 
 async function fetchTextWithFallback(url) {
-  try {
-    const res = await fetch(url);
-    if (res.ok) {
-      const t = await res.text();
-      if (t && t.length > 500) return t;
-    }
-  } catch (e) {}
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-  try {
-    const res = await fetch("https://r.jina.ai/" + url);
-    if (res.ok) {
-      const t = await res.text();
-      if (t && t.length > 500) return t;
-    }
-  } catch (e) {}
+  const mirrors = [
+    url,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    `https://r.jina.ai/${url}`
+  ];
 
-  try {
-    const res = await fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent(url));
-    if (res.ok) {
-      const t = await res.text();
-      if (t && t.length > 500) return t;
+  for (const mirror of mirrors) {
+    try {
+      const res = await fetch(mirror, { 
+        signal: controller.signal 
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const text = await res.text();
+        if (text && text.length > 500) return text;
+      }
+    } catch (e) {
+      continue;
     }
-  } catch (e) {}
-
+  }
   throw new Error("unable to fetch text");
 }
 
@@ -155,7 +155,6 @@ export default function App() {
 
   useEffect(() => {
     fetchBooks(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, genre]);
 
   async function openBook(book) {
@@ -166,11 +165,21 @@ export default function App() {
     setTextError(null);
     setMenuOpen(false);
     setTextLoading(true);
+
+    const cachedText = localStorage.getItem(`book_${book.id}`);
+    if (cachedText) {
+      const parsed = splitChapters(cachedText);
+      setChapters(parsed);
+      setTextLoading(false);
+      return;
+    }
+
     try {
       const url = pickTextUrl(book.formats);
       if (!url) throw new Error("no text format");
       const raw = await fetchTextWithFallback(url);
       const cleaned = stripBoilerplate(raw);
+      localStorage.setItem(`book_${book.id}`, cleaned);
       const parsed = splitChapters(cleaned);
       setChapters(parsed);
     } catch (e) {
@@ -329,7 +338,7 @@ export default function App() {
           <div className="rule-double" />
 
           <div className="reader-body">
-            {textLoading && <p className="status-line">Loading text.</p>}
+            {textLoading && <p className="status-line">Loading text... this might take a minute for big books.</p>}
             {textError && <p className="status-line error">{textError}</p>}
 
             {!textLoading && !textError && chapters.length > 0 && (
