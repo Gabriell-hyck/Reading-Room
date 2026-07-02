@@ -103,6 +103,26 @@ function pickTextUrl(formats) {
   return null;
 }
 
+function pickCoverUrl(formats) {
+  const keys = Object.keys(formats || {});
+  const coverKeys = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp"
+  ];
+  
+  for (const key of coverKeys) {
+    const found = keys.find((k) => k.startsWith(key));
+    if (found) return formats[found];
+  }
+  
+  const anyImage = keys.find((k) => k.startsWith("image/"));
+  if (anyImage) return formats[anyImage];
+  
+  return null;
+}
+
 export default function App() {
   const [view, setView] = useState("catalog");
   const [searchInput, setSearchInput] = useState("");
@@ -257,7 +277,14 @@ export default function App() {
 
           <div className="rule-double" />
 
-          {loading && <p className="status-line">Loading catalog.</p>}
+          {loading && (
+            <p className="status-line">
+              Loading catalog.
+              <span className="loading-dots">
+                <span></span><span></span><span></span>
+              </span>
+            </p>
+          )}
           {error && <p className="status-line error">{error}</p>}
           {!loading && !error && books.length === 0 && (
             <p className="status-line">No results for that search.</p>
@@ -270,9 +297,32 @@ export default function App() {
                 ? book.bookshelves
                 : book.subjects
               ).slice(0, 2);
+              const coverUrl = pickCoverUrl(book.formats);
               return (
                 <article className="card" key={book.id}>
                   <div className="card-punch" />
+                  <div className="card-cover-wrap">
+                    {coverUrl ? (
+                      <img 
+                        src={coverUrl} 
+                        alt={`Cover of ${book.title}`}
+                        className="card-cover"
+                        loading="lazy"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          const parent = e.target.parentElement;
+                          const placeholder = document.createElement('div');
+                          placeholder.className = 'card-cover-placeholder';
+                          placeholder.innerHTML = `<span>${book.title.charAt(0)}</span>`;
+                          parent.appendChild(placeholder);
+                        }}
+                      />
+                    ) : (
+                      <div className="card-cover-placeholder">
+                        <span>{book.title.charAt(0)}</span>
+                      </div>
+                    )}
+                  </div>
                   <div className="card-number">PG NO. {String(book.id).padStart(5, "0")}</div>
                   <h2 className="card-title">{book.title}</h2>
                   <p className="card-author">{author}</p>
@@ -335,10 +385,31 @@ export default function App() {
             </div>
           </div>
 
+          <div className="progress-container">
+            <div className="progress-track">
+              <div 
+                className="progress-fill" 
+                style={{ 
+                  width: chapters.length > 0 ? `${((chapterIndex + 1) / chapters.length) * 100}%` : '0%' 
+                }} 
+              />
+            </div>
+            <span className="progress-text">
+              {chapters.length > 0 ? `${chapterIndex + 1}/${chapters.length}` : '0/0'}
+            </span>
+          </div>
+
           <div className="rule-double" />
 
           <div className="reader-body">
-            {textLoading && <p className="status-line">Loading text... this might take a minute for big books.</p>}
+            {textLoading && (
+              <p className="status-line">
+                Loading text... this might take a minute for big books.
+                <span className="loading-dots">
+                  <span></span><span></span><span></span>
+                </span>
+              </p>
+            )}
             {textError && <p className="status-line error">{textError}</p>}
 
             {!textLoading && !textError && chapters.length > 0 && (
@@ -387,16 +458,46 @@ const styles = {
 };
 
 const css = `
-  @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&family=Playfair+Display:ital,wght@0,600;1,400&display=swap');
 
   * { box-sizing: border-box; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes stampIn {
+    from { transform: rotate(-1deg) scale(0.8); opacity: 0; }
+    to { transform: rotate(-1deg) scale(1); opacity: 1; }
+  }
 
   .catalog, .reader {
     max-width: 1040px;
     margin: 0 auto;
     padding: 40px 24px 80px;
-    font-family: 'Lora', serif;
+    font-family: 'Inter', sans-serif;
     color: #0d0d0d;
+  }
+
+  ::selection {
+    background: #0d0d0d;
+    color: #ffffff;
+  }
+
+  .chapter-text p::selection {
+    background: #0d0d0d;
+    color: #ffffff;
   }
 
   .masthead-top {
@@ -408,7 +509,7 @@ const css = `
   }
 
   .masthead h1 {
-    font-family: 'Courier Prime', monospace;
+    font-family: 'JetBrains Mono', monospace;
     font-weight: 700;
     font-size: 28px;
     letter-spacing: 0.06em;
@@ -416,7 +517,7 @@ const css = `
   }
 
   .masthead-sub {
-    font-family: 'Lora', serif;
+    font-family: 'Inter', sans-serif;
     font-style: italic;
     color: #6e6e6e;
     font-size: 14px;
@@ -426,23 +527,30 @@ const css = `
     display: flex;
     align-items: center;
     gap: 10px;
-    border-bottom: 1px solid #0d0d0d;
+    border-bottom: 2px solid #0d0d0d;
     padding-bottom: 8px;
     max-width: 480px;
+    transition: border-color 0.2s ease;
+  }
+
+  .search-line:focus-within {
+    border-bottom-color: #000000;
   }
 
   .search-line input {
     flex: 1;
     border: none;
     outline: none;
-    font-family: 'Courier Prime', monospace;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 14px;
     background: transparent;
     color: #0d0d0d;
+    padding: 4px 0;
   }
 
   .search-line input::placeholder {
-    color: #9a9a9a;
+    color: #b0b0b0;
+    font-style: italic;
   }
 
   .clear-btn {
@@ -460,20 +568,25 @@ const css = `
   .genre-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
     margin: 24px 0 16px;
   }
 
   .genre-chip {
-    font-family: 'Courier Prime', monospace;
-    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     border: 1px solid #0d0d0d;
     background: #ffffff;
     color: #0d0d0d;
-    padding: 6px 12px;
+    padding: 4px 10px;
     cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .genre-chip:hover {
+    background: #f0f0f0;
   }
 
   .genre-chip.active {
@@ -494,12 +607,33 @@ const css = `
   }
 
   .status-line {
-    font-family: 'Courier Prime', monospace;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 13px;
     color: #6e6e6e;
     padding: 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
   .status-line.error { color: #0d0d0d; }
+
+  .loading-dots {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .loading-dots span {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #6e6e6e;
+    animation: pulse 1.2s ease infinite;
+  }
+
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
 
   .card-grid {
     display: grid;
@@ -510,74 +644,154 @@ const css = `
   .card {
     position: relative;
     border: 1px solid #0d0d0d;
-    padding: 18px 16px 16px;
+    padding: 16px 16px 16px;
     background: #ffffff;
     display: flex;
     flex-direction: column;
-    min-height: 240px;
+    min-height: 340px;
+    animation: fadeIn 0.4s ease both;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 2px;
   }
+
+  .card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.06);
+  }
+
+  .card:nth-child(1) { animation-delay: 0.00s; }
+  .card:nth-child(2) { animation-delay: 0.04s; }
+  .card:nth-child(3) { animation-delay: 0.08s; }
+  .card:nth-child(4) { animation-delay: 0.12s; }
+  .card:nth-child(5) { animation-delay: 0.16s; }
+  .card:nth-child(6) { animation-delay: 0.20s; }
+  .card:nth-child(7) { animation-delay: 0.24s; }
+  .card:nth-child(8) { animation-delay: 0.28s; }
+  .card:nth-child(9) { animation-delay: 0.32s; }
+  .card:nth-child(10) { animation-delay: 0.36s; }
+  .card:nth-child(11) { animation-delay: 0.40s; }
+  .card:nth-child(12) { animation-delay: 0.44s; }
 
   .card-punch {
     position: absolute;
     top: 10px;
     left: 50%;
     transform: translateX(-50%);
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     border: 1px solid #0d0d0d;
     background: #ffffff;
+    transition: background 0.2s ease;
+  }
+
+  .card:hover .card-punch {
+    background: #0d0d0d;
+  }
+
+  .card-cover-wrap {
+    width: 100%;
+    aspect-ratio: 2/3;
+    margin-bottom: 10px;
+    background: #f5f5f5;
+    border: 1px solid #e8e8e8;
+    border-radius: 2px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.2s ease;
+  }
+
+  .card:hover .card-cover-wrap {
+    border-color: #0d0d0d;
+  }
+
+  .card-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .card-cover-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f5f5f5;
+    font-family: 'Playfair Display', serif;
+    font-size: 32px;
+    font-weight: 600;
+    color: #d0d0d0;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .card-cover-placeholder span {
+    display: block;
+    opacity: 0.4;
   }
 
   .card-number {
-    font-family: 'Courier Prime', monospace;
-    font-size: 10px;
-    letter-spacing: 0.04em;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.06em;
     color: #6e6e6e;
     text-align: right;
-    margin-bottom: 14px;
+    margin-bottom: 6px;
+    margin-top: 6px;
   }
 
   .card-title {
-    font-family: 'Lora', serif;
+    font-family: 'Playfair Display', serif;
     font-weight: 600;
-    font-size: 17px;
+    font-size: 16px;
     line-height: 1.3;
-    margin: 0 0 6px;
+    margin: 0 0 2px;
   }
 
   .card-author {
-    font-family: 'Lora', serif;
+    font-family: 'Inter', serif;
     font-style: italic;
-    font-size: 13px;
+    font-size: 12px;
     color: #6e6e6e;
-    margin: 0 0 12px;
+    margin: 0 0 8px;
   }
 
   .card-rule {
     border-top: 1px dashed #b8b8b8;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
 
   .card-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 4px;
     flex: 1;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
   }
 
   .card-tag {
-    font-family: 'Courier Prime', monospace;
-    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
     color: #6e6e6e;
-    border: 1px solid #cfcfcf;
-    padding: 3px 6px;
+    border: 1px solid #e8e8e8;
+    padding: 2px 6px;
+    border-radius: 2px;
+    transition: all 0.15s ease;
+  }
+
+  .card:hover .card-tag {
+    border-color: #0d0d0d;
   }
 
   .stamp-btn {
     align-self: flex-start;
-    font-family: 'Courier Prime', monospace;
+    font-family: 'JetBrains Mono', monospace;
     font-weight: 700;
     font-size: 12px;
     letter-spacing: 0.08em;
@@ -587,12 +801,21 @@ const css = `
     padding: 6px 14px;
     cursor: pointer;
     transform: rotate(-1deg);
+    transition: all 0.15s ease;
+    animation: stampIn 0.5s ease both;
+    animation-delay: 0.2s;
   }
 
   .stamp-btn:hover {
     background: #0d0d0d;
     color: #ffffff;
+    transform: rotate(0deg) scale(1.05);
   }
+
+  .stamp-btn:active {
+    transform: rotate(-2deg) scale(0.95);
+  }
+
   .stamp-btn:focus-visible {
     outline: 2px solid #0d0d0d;
     outline-offset: 3px;
@@ -605,14 +828,21 @@ const css = `
   }
 
   .load-more-btn {
-    font-family: 'Courier Prime', monospace;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
     letter-spacing: 0.05em;
     border: 1px solid #0d0d0d;
     background: #ffffff;
     padding: 10px 22px;
     cursor: pointer;
+    transition: all 0.15s ease;
   }
+
+  .load-more-btn:hover:not(:disabled) {
+    background: #0d0d0d;
+    color: #ffffff;
+  }
+
   .load-more-btn:disabled { color: #9a9a9a; border-color: #9a9a9a; cursor: default; }
 
   .reader-bar {
@@ -626,17 +856,23 @@ const css = `
     display: flex;
     align-items: center;
     gap: 6px;
-    font-family: 'Courier Prime', monospace;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
     letter-spacing: 0.05em;
     border: 1px solid #0d0d0d;
     background: #ffffff;
     padding: 8px 12px;
     cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .back-btn:hover {
+    background: #0d0d0d;
+    color: #ffffff;
   }
 
   .reader-title {
-    font-family: 'Lora', serif;
+    font-family: 'Playfair Display', serif;
     font-weight: 600;
     font-size: 16px;
     flex: 1;
@@ -652,14 +888,21 @@ const css = `
     display: flex;
     align-items: center;
     gap: 6px;
-    font-family: 'Courier Prime', monospace;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
     letter-spacing: 0.05em;
     border: 1px solid #0d0d0d;
     background: #ffffff;
     padding: 8px 12px;
     cursor: pointer;
+    transition: all 0.15s ease;
   }
+
+  .chapter-menu-btn:hover:not(:disabled) {
+    background: #0d0d0d;
+    color: #ffffff;
+  }
+
   .chapter-menu-btn:disabled { color: #9a9a9a; border-color: #cfcfcf; cursor: default; }
 
   .chapter-menu {
@@ -672,75 +915,329 @@ const css = `
     overflow-y: auto;
     width: 260px;
     z-index: 10;
+    animation: slideDown 0.2s ease both;
   }
 
   .chapter-menu-item {
     display: block;
     width: 100%;
     text-align: left;
-    font-family: 'Courier Prime', monospace;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
     background: none;
     border: none;
     border-bottom: 1px solid #ececec;
     padding: 10px 12px;
     cursor: pointer;
+    transition: all 0.15s ease;
   }
+
   .chapter-menu-item.active { background: #0d0d0d; color: #ffffff; }
   .chapter-menu-item:hover:not(.active) { background: #f2f2f2; }
 
+  .progress-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    margin-top: 12px;
+    margin-bottom: 4px;
+  }
+
+  .progress-track {
+    flex: 1;
+    height: 4px;
+    background: #e8e8e8;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: #0d0d0d;
+    transition: width 0.3s ease;
+    border-radius: 2px;
+  }
+
+  .progress-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #6e6e6e;
+    white-space: nowrap;
+    min-width: 40px;
+    text-align: right;
+  }
+
   .reader-body {
-    max-width: 640px;
+    max-width: 680px;
     margin: 0 auto;
+    padding: 0 8px;
   }
 
   .chapter-eyebrow {
-    font-family: 'Courier Prime', monospace;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
     color: #6e6e6e;
     text-align: center;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
 
   .chapter-title {
-    font-family: 'Lora', serif;
+    font-family: 'Playfair Display', serif;
     font-weight: 600;
-    font-size: 24px;
+    font-size: 28px;
     text-align: center;
-    margin: 0 0 32px;
+    margin: 0 0 36px;
+    letter-spacing: -0.01em;
   }
 
   .chapter-text p {
-    font-family: 'Lora', serif;
+    font-family: 'Inter', sans-serif;
     font-size: 17px;
-    line-height: 1.75;
+    line-height: 1.8;
     margin: 0 0 20px;
     text-align: justify;
+  }
+
+  .chapter-text p:first-of-type::first-letter {
+    font-family: 'Playfair Display', serif;
+    font-size: 48px;
+    float: left;
+    line-height: 1;
+    margin-right: 6px;
+    margin-top: 4px;
+    font-weight: 600;
   }
 
   .chapter-nav {
     display: flex;
     justify-content: space-between;
-    margin-top: 40px;
-    padding-top: 20px;
-    border-top: 1px solid #0d0d0d;
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 2px solid #0d0d0d;
   }
 
   .chapter-nav button {
-    font-family: 'Courier Prime', monospace;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 13px;
     border: 1px solid #0d0d0d;
     background: #ffffff;
-    padding: 10px 16px;
+    padding: 10px 20px;
     cursor: pointer;
+    transition: all 0.15s ease;
   }
-  .chapter-nav button:disabled { color: #9a9a9a; border-color: #cfcfcf; cursor: default; }
 
-  @media (max-width: 560px) {
-    .masthead h1 { font-size: 22px; }
-    .reader-title { order: -1; width: 100%; text-align: left; }
-    .chapter-title { font-size: 20px; }
-    .chapter-text p { text-align: left; }
+  .chapter-nav button:hover:not(:disabled) {
+    background: #0d0d0d;
+    color: #ffffff;
+  }
+
+  .chapter-nav button:disabled {
+    color: #b0b0b0;
+    border-color: #d0d0d0;
+    cursor: default;
+  }
+
+  /* Tablets */
+  @media (max-width: 820px) {
+    .catalog, .reader {
+      padding: 32px 20px 60px;
+    }
+
+    .card-grid {
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      min-height: 280px;
+    }
+
+    .reader-body {
+      max-width: 100%;
+      padding: 0 4px;
+    }
+
+    .chapter-title {
+      font-size: 24px;
+    }
+
+    .chapter-text p {
+      font-size: 16px;
+    }
+  }
+
+  /* Mobile Large */
+  @media (max-width: 640px) {
+    .catalog, .reader {
+      padding: 24px 16px 48px;
+    }
+
+    .masthead h1 {
+      font-size: 20px;
+    }
+
+    .masthead-sub {
+      font-size: 12px;
+    }
+
+    .masthead-top {
+      gap: 8px;
+    }
+
+    .search-line {
+      max-width: 100%;
+    }
+
+    .search-line input {
+      font-size: 13px;
+    }
+
+    .genre-row {
+      gap: 6px;
+      margin: 16px 0 12px;
+    }
+
+    .genre-chip {
+      font-size: 10px;
+      padding: 4px 10px;
+    }
+
+    .card-grid {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px;
+    }
+
+    .card {
+      min-height: 260px;
+      padding: 12px 12px 12px;
+    }
+
+    .card-cover-wrap {
+      aspect-ratio: 2/3;
+      margin-bottom: 6px;
+    }
+
+    .card-cover-placeholder {
+      font-size: 24px;
+    }
+
+    .card-title {
+      font-size: 14px;
+    }
+
+    .card-author {
+      font-size: 11px;
+    }
+
+    .card-number {
+      font-size: 8px;
+      margin-top: 4px;
+    }
+
+    .reader-bar {
+      gap: 12px;
+    }
+
+    .reader-title {
+      order: -1;
+      width: 100%;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    .back-btn, .chapter-menu-btn {
+      font-size: 10px;
+      padding: 6px 10px;
+    }
+
+    .chapter-title {
+      font-size: 20px;
+      margin-bottom: 24px;
+    }
+
+    .chapter-text p {
+      font-size: 15px;
+      line-height: 1.7;
+      text-align: left;
+    }
+
+    .chapter-text p:first-of-type::first-letter {
+      font-size: 36px;
+      margin-right: 4px;
+    }
+
+    .chapter-nav {
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 32px;
+      padding-top: 16px;
+    }
+
+    .chapter-nav button {
+      width: 100%;
+      text-align: center;
+      padding: 10px;
+      font-size: 12px;
+    }
+
+    .rule-double {
+      margin: 8px 0 20px;
+    }
+
+    .progress-container {
+      margin-top: 8px;
+    }
+
+    .progress-text {
+      font-size: 10px;
+      min-width: 32px;
+    }
+  }
+
+  /* Mobile Small */
+  @media (max-width: 400px) {
+    .card-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .card {
+      min-height: 220px;
+      padding: 10px 10px 10px;
+    }
+
+    .card-cover-wrap {
+      aspect-ratio: 2/3;
+      margin-bottom: 4px;
+    }
+
+    .card-cover-placeholder {
+      font-size: 18px;
+    }
+
+    .card-title {
+      font-size: 12px;
+    }
+
+    .card-author {
+      font-size: 10px;
+    }
+
+    .card-tag {
+      font-size: 7px;
+      padding: 1px 4px;
+    }
+
+    .stamp-btn {
+      font-size: 9px;
+      padding: 3px 8px;
+    }
+
+    .chapter-text p {
+      font-size: 14px;
+    }
   }
 `;
