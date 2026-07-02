@@ -123,6 +123,29 @@ function pickCoverUrl(formats) {
   return null;
 }
 
+async function translateText(text, targetLang = "id") {
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return data[0].map(item => item[0]).join('');
+  } catch (e) {
+    console.error("Translation failed:", e);
+    return text;
+  }
+}
+
+async function translateChapter(text) {
+  const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+  const translated = await Promise.all(
+    paragraphs.map(async (p) => {
+      const translatedP = await translateText(p);
+      return translatedP;
+    })
+  );
+  return translated.join('\n\n');
+}
+
 export default function App() {
   const [view, setView] = useState("catalog");
   const [searchInput, setSearchInput] = useState("");
@@ -140,6 +163,10 @@ export default function App() {
   const [textLoading, setTextLoading] = useState(false);
   const [textError, setTextError] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const [showTranslation, setShowTranslation] = useState(false);
+  const [translatedText, setTranslatedText] = useState({});
+  const [translating, setTranslating] = useState(false);
 
   const fetchBooks = useCallback(
     async (reset) => {
@@ -185,6 +212,8 @@ export default function App() {
     setTextError(null);
     setMenuOpen(false);
     setTextLoading(true);
+    setShowTranslation(false);
+    setTranslatedText({});
 
     const cachedText = localStorage.getItem(`book_${book.id}`);
     if (cachedText) {
@@ -215,17 +244,49 @@ export default function App() {
     setChapters([]);
     setChapterIndex(0);
     setTextError(null);
+    setShowTranslation(false);
+    setTranslatedText({});
   }
 
   function goToChapter(i) {
     setChapterIndex(i);
     setMenuOpen(false);
+    setShowTranslation(false);
     window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
   }
 
   function handleSearchSubmit(e) {
     e.preventDefault();
     setQuery(searchInput.trim());
+  }
+
+  async function handleTranslate() {
+    if (chapters.length === 0 || !chapters[chapterIndex]) return;
+    
+    const currentChapter = chapters[chapterIndex];
+    
+    if (translatedText[currentChapter.title]) {
+      setShowTranslation(true);
+      return;
+    }
+
+    setTranslating(true);
+    try {
+      const translated = await translateChapter(currentChapter.body);
+      setTranslatedText(prev => ({
+        ...prev,
+        [currentChapter.title]: translated
+      }));
+      setShowTranslation(true);
+    } catch (e) {
+      console.error("Translation error:", e);
+    } finally {
+      setTranslating(false);
+    }
+  }
+
+  function toggleTranslation() {
+    setShowTranslation(!showTranslation);
   }
 
   return (
@@ -237,7 +298,7 @@ export default function App() {
           <header className="masthead">
             <div className="masthead-top">
               <h1>THE READING ROOM</h1>
-              <span className="masthead-sub">a catalog of public domain texts</span>
+              <span className="masthead-sub">your place to explore about knowledge</span>
             </div>
             <form className="search-line" onSubmit={handleSearchSubmit}>
               <Search size={16} strokeWidth={2} />
@@ -383,6 +444,15 @@ export default function App() {
                 </div>
               )}
             </div>
+            <div className="reader-actions">
+              <button 
+                className={"translate-btn" + (showTranslation ? " translated" : "")}
+                onClick={showTranslation ? toggleTranslation : handleTranslate}
+                disabled={translating || chapters.length === 0}
+              >
+                {translating ? 'Translating...' : showTranslation ? 'Show Original' : 'Translate to Indonesian'}
+              </button>
+            </div>
           </div>
 
           <div className="progress-container">
@@ -419,12 +489,19 @@ export default function App() {
                 </p>
                 <h2 className="chapter-title">{chapters[chapterIndex].title}</h2>
                 <div className="chapter-text">
-                  {chapters[chapterIndex].body
-                    .split(/\n\s*\n/)
-                    .filter((p) => p.trim().length > 0)
-                    .map((p, i) => (
-                      <p key={i}>{p.replace(/\s+/g, " ").trim()}</p>
-                    ))}
+                  {(() => {
+                    const currentChapter = chapters[chapterIndex];
+                    const displayText = showTranslation && translatedText[currentChapter.title] 
+                      ? translatedText[currentChapter.title] 
+                      : currentChapter.body;
+                    
+                    return displayText
+                      .split(/\n\s*\n/)
+                      .filter((p) => p.trim().length > 0)
+                      .map((p, i) => (
+                        <p key={i}>{p.replace(/\s+/g, " ").trim()}</p>
+                      ));
+                  })()}
                 </div>
 
                 <div className="chapter-nav">
@@ -935,6 +1012,40 @@ const css = `
   .chapter-menu-item.active { background: #0d0d0d; color: #ffffff; }
   .chapter-menu-item:hover:not(.active) { background: #f2f2f2; }
 
+  .reader-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .translate-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    border: 1px solid #0d0d0d;
+    background: #ffffff;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .translate-btn:hover:not(:disabled) {
+    background: #0d0d0d;
+    color: #ffffff;
+  }
+
+  .translate-btn:disabled {
+    color: #9a9a9a;
+    border-color: #cfcfcf;
+    cursor: default;
+  }
+
+  .translate-btn.translated {
+    background: #0d0d0d;
+    color: #ffffff;
+  }
+
   .progress-container {
     display: flex;
     align-items: center;
@@ -1040,7 +1151,6 @@ const css = `
     cursor: default;
   }
 
-  /* Tablets */
   @media (max-width: 820px) {
     .catalog, .reader {
       padding: 32px 20px 60px;
@@ -1069,7 +1179,6 @@ const css = `
     }
   }
 
-  /* Mobile Large */
   @media (max-width: 640px) {
     .catalog, .reader {
       padding: 24px 16px 48px;
@@ -1153,6 +1262,11 @@ const css = `
       padding: 6px 10px;
     }
 
+    .translate-btn {
+      font-size: 9px;
+      padding: 4px 10px;
+    }
+
     .chapter-title {
       font-size: 20px;
       margin-bottom: 24px;
@@ -1197,7 +1311,6 @@ const css = `
     }
   }
 
-  /* Mobile Small */
   @media (max-width: 400px) {
     .card-grid {
       grid-template-columns: 1fr 1fr;
