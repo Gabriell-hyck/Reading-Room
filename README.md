@@ -8,14 +8,16 @@ browse through thousands of public domain books, search by title or author, filt
 
 features
 
+```
 · catalog view with all them books
 · search by title or author
 · genre filters (fiction, romance, mystery, horror, sci-fi, philosophy, poetry, drama, history, and more)
 · infinite scroll with load more button
-· built-in reader with chapter navigation
+· built-in reader with chapter navigation 
 · automatic chapter detection from text
 · fallback text fetching if the main source fails
 · clean typewriter-inspired design
+```
 
 how it works
 
