@@ -295,55 +295,57 @@ export default function App() {
 
       {view === "catalog" && (
         <div className="catalog">
-          <header className="masthead">
-            <div className="masthead-top">
-              <h1>THE READING ROOM</h1>
-              <span className="masthead-sub">your place to explore about knowledge</span>
+          {/* HERO SECTION */}
+          <section className="hero">
+            <div className="hero-content">
+              <span className="hero-badge">public domain library</span>
+              <h1 className="hero-title">Discover Lost Classics</h1>
+              <p className="hero-sub">Thousands of public domain books, free to read. Philosophy, fiction, poetry, and more.</p>
+              <form className="hero-search" onSubmit={handleSearchSubmit}>
+                <Search size={18} strokeWidth={2} />
+                <input
+                  type="text"
+                  placeholder="Search by title or author..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                />
+                {searchInput && (
+                  <button type="button" className="clear-btn" onClick={() => { setSearchInput(""); setQuery(""); }}>
+                    <X size={14} />
+                  </button>
+                )}
+              </form>
             </div>
-            <form className="search-line" onSubmit={handleSearchSubmit}>
-              <Search size={16} strokeWidth={2} />
-              <input
-                type="text"
-                placeholder="Search by title or author"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-              />
-              {searchInput && (
-                <button
-                  type="button"
-                  className="clear-btn"
-                  aria-label="Clear search"
-                  onClick={() => {
-                    setSearchInput("");
-                    setQuery("");
-                  }}
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </form>
-          </header>
+          </section>
 
-          <nav className="genre-row" aria-label="Filter by genre">
-            {GENRES.map((g) => (
-              <button
-                key={g}
-                className={"genre-chip" + (genre === g ? " active" : "")}
-                onClick={() => setGenre(g)}
-              >
-                {g}
-              </button>
-            ))}
-          </nav>
+          {/* FILTER & COUNT */}
+          <div className="filter-bar">
+            <div className="filter-left">
+              <span className="result-count">{books.length} books</span>
+              <div className="genre-select-wrap">
+                <select 
+                  className="genre-select" 
+                  value={genre} 
+                  onChange={(e) => setGenre(e.target.value)}
+                >
+                  {GENRES.map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="select-arrow" />
+              </div>
+            </div>
+            <div className="filter-right">
+              {query && <span className="search-query">Search: "{query}"</span>}
+            </div>
+          </div>
 
           <div className="rule-double" />
 
           {loading && (
             <p className="status-line">
               Loading catalog.
-              <span className="loading-dots">
-                <span></span><span></span><span></span>
-              </span>
+              <span className="loading-dots"><span></span><span></span><span></span></span>
             </p>
           )}
           {error && <p className="status-line error">{error}</p>}
@@ -351,57 +353,96 @@ export default function App() {
             <p className="status-line">No results for that search.</p>
           )}
 
-          <div className="card-grid">
-            {books.map((book) => {
-              const author = book.authors && book.authors.length > 0 ? book.authors[0].name : "Unknown";
-              const tags = (book.bookshelves && book.bookshelves.length > 0
-                ? book.bookshelves
-                : book.subjects
-              ).slice(0, 2);
-              const coverUrl = pickCoverUrl(book.formats);
-              return (
-                <article className="card" key={book.id}>
-                  <div className="card-punch" />
-                  <div className="card-cover-wrap">
-                    {coverUrl ? (
-                      <img 
-                        src={coverUrl} 
-                        alt={`Cover of ${book.title}`}
-                        className="card-cover"
-                        loading="lazy"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          const parent = e.target.parentElement;
-                          const placeholder = document.createElement('div');
-                          placeholder.className = 'card-cover-placeholder';
-                          placeholder.innerHTML = `<span>${book.title.charAt(0)}</span>`;
-                          parent.appendChild(placeholder);
-                        }}
-                      />
-                    ) : (
-                      <div className="card-cover-placeholder">
-                        <span>{book.title.charAt(0)}</span>
+          {/* FEATURED BOOKS */}
+          {!loading && !error && books.length > 0 && (
+            <>
+              <div className="section-header">
+                <h2 className="section-title">Featured Books</h2>
+                <span className="section-more">Browse all →</span>
+              </div>
+              <div className="featured-grid">
+                {books.slice(0, 4).map((book) => {
+                  const author = book.authors && book.authors.length > 0 ? book.authors[0].name : "Unknown";
+                  const coverUrl = pickCoverUrl(book.formats);
+                  return (
+                    <div className="featured-card" key={book.id} onClick={() => openBook(book)}>
+                      <div className="featured-cover">
+                        {coverUrl ? (
+                          <img src={coverUrl} alt={book.title} loading="lazy" />
+                        ) : (
+                          <div className="featured-placeholder">{book.title.charAt(0)}</div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div className="card-number">PG NO. {String(book.id).padStart(5, "0")}</div>
-                  <h2 className="card-title">{book.title}</h2>
-                  <p className="card-author">{author}</p>
-                  <div className="card-rule" />
-                  <div className="card-tags">
-                    {tags.map((t, i) => (
-                      <span className="card-tag" key={i}>
-                        {t.length > 28 ? t.slice(0, 28) + "…" : t}
-                      </span>
-                    ))}
-                  </div>
-                  <button className="stamp-btn" onClick={() => openBook(book)}>
-                    READ
-                  </button>
-                </article>
-              );
-            })}
-          </div>
+                      <div className="featured-info">
+                        <h3 className="featured-title">{book.title}</h3>
+                        <p className="featured-author">{author}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* ALL BOOKS GRID */}
+          {!loading && !error && books.length > 0 && (
+            <>
+              <div className="section-header">
+                <h2 className="section-title">All Books</h2>
+              </div>
+              <div className="card-grid">
+                {books.map((book) => {
+                  const author = book.authors && book.authors.length > 0 ? book.authors[0].name : "Unknown";
+                  const tags = (book.bookshelves && book.bookshelves.length > 0
+                    ? book.bookshelves
+                    : book.subjects
+                  ).slice(0, 2);
+                  const coverUrl = pickCoverUrl(book.formats);
+                  return (
+                    <article className="card" key={book.id}>
+                      <div className="card-punch" />
+                      <div className="card-cover-wrap">
+                        {coverUrl ? (
+                          <img 
+                            src={coverUrl} 
+                            alt={`Cover of ${book.title}`}
+                            className="card-cover"
+                            loading="lazy"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              const parent = e.target.parentElement;
+                              const placeholder = document.createElement('div');
+                              placeholder.className = 'card-cover-placeholder';
+                              placeholder.innerHTML = `<span>${book.title.charAt(0)}</span>`;
+                              parent.appendChild(placeholder);
+                            }}
+                          />
+                        ) : (
+                          <div className="card-cover-placeholder">
+                            <span>{book.title.charAt(0)}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="card-number">PG NO. {String(book.id).padStart(5, "0")}</div>
+                      <h2 className="card-title">{book.title}</h2>
+                      <p className="card-author">{author}</p>
+                      <div className="card-rule" />
+                      <div className="card-tags">
+                        {tags.map((t, i) => (
+                          <span className="card-tag" key={i}>
+                            {t.length > 28 ? t.slice(0, 28) + "…" : t}
+                          </span>
+                        ))}
+                      </div>
+                      <button className="stamp-btn" onClick={() => openBook(book)}>
+                        READ
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+            </>
+          )}
 
           {nextUrl && !loading && (
             <div className="load-more-row">
@@ -577,103 +618,231 @@ const css = `
     color: #ffffff;
   }
 
-  .masthead-top {
-    display: flex;
-    align-items: baseline;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-bottom: 20px;
+  /* HERO */
+  .hero {
+    padding: 60px 0 40px;
+    text-align: center;
+    border-bottom: 2px solid #0d0d0d;
+    margin-bottom: 32px;
   }
 
-  .masthead h1 {
+  .hero-badge {
     font-family: 'JetBrains Mono', monospace;
-    font-weight: 700;
-    font-size: 28px;
-    letter-spacing: 0.06em;
-    margin: 0;
-  }
-
-  .masthead-sub {
-    font-family: 'Inter', sans-serif;
-    font-style: italic;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
     color: #6e6e6e;
-    font-size: 14px;
+    display: inline-block;
+    margin-bottom: 12px;
   }
 
-  .search-line {
+  .hero-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 44px;
+    font-weight: 600;
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .hero-sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    color: #6e6e6e;
+    max-width: 480px;
+    margin: 0 auto 28px;
+    line-height: 1.6;
+  }
+
+  .hero-search {
     display: flex;
     align-items: center;
-    gap: 10px;
-    border-bottom: 2px solid #0d0d0d;
-    padding-bottom: 8px;
+    gap: 12px;
     max-width: 480px;
-    transition: border-color 0.2s ease;
+    margin: 0 auto;
+    border-bottom: 2px solid #0d0d0d;
+    padding-bottom: 10px;
   }
 
-  .search-line:focus-within {
-    border-bottom-color: #000000;
-  }
-
-  .search-line input {
+  .hero-search input {
     flex: 1;
     border: none;
     outline: none;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
     background: transparent;
     color: #0d0d0d;
     padding: 4px 0;
   }
 
-  .search-line input::placeholder {
+  .hero-search input::placeholder {
     color: #b0b0b0;
     font-style: italic;
   }
 
-  .clear-btn {
+  .hero-search .clear-btn {
     border: none;
     background: none;
     cursor: pointer;
     color: #6e6e6e;
     padding: 2px;
   }
-  .clear-btn:focus-visible, .search-line input:focus-visible {
-    outline: 2px solid #0d0d0d;
-    outline-offset: 2px;
-  }
 
-  .genre-row {
+  /* FILTER BAR */
+  .filter-bar {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
     flex-wrap: wrap;
-    gap: 6px;
-    margin: 24px 0 16px;
+    gap: 12px;
+    margin-bottom: 8px;
   }
 
-  .genre-chip {
+  .filter-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .result-count {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 0.04em;
+    font-size: 12px;
+    color: #6e6e6e;
+  }
+
+  .genre-select-wrap {
+    position: relative;
+    display: inline-block;
+  }
+
+  .genre-select {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
     text-transform: uppercase;
+    letter-spacing: 0.05em;
     border: 1px solid #0d0d0d;
     background: #ffffff;
-    color: #0d0d0d;
-    padding: 4px 10px;
+    padding: 6px 32px 6px 14px;
     cursor: pointer;
-    transition: all 0.15s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    border-radius: 2px;
+    color: #0d0d0d;
   }
 
-  .genre-chip:hover {
-    background: #f0f0f0;
-  }
-
-  .genre-chip.active {
-    background: #0d0d0d;
-    color: #ffffff;
-  }
-
-  .genre-chip:focus-visible {
+  .genre-select:focus {
     outline: 2px solid #0d0d0d;
     outline-offset: 2px;
+  }
+
+  .select-arrow {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #6e6e6e;
+  }
+
+  .filter-right .search-query {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #6e6e6e;
+    font-style: italic;
+  }
+
+  /* SECTION HEADER */
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin: 32px 0 16px;
+  }
+
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .section-more {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #6e6e6e;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+  }
+
+  .section-more:hover {
+    color: #0d0d0d;
+  }
+
+  /* FEATURED GRID */
+  .featured-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+
+  .featured-card {
+    cursor: pointer;
+    border: 1px solid #e8e8e8;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    background: #ffffff;
+  }
+
+  .featured-card:hover {
+    border-color: #0d0d0d;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+  }
+
+  .featured-cover {
+    aspect-ratio: 2/3;
+    background: #f5f5f5;
+    overflow: hidden;
+  }
+
+  .featured-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .featured-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 32px;
+    font-weight: 600;
+    color: #d0d0d0;
+    background: #f5f5f5;
+  }
+
+  .featured-info {
+    padding: 10px 12px 12px;
+  }
+
+  .featured-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 2px;
+    line-height: 1.3;
+  }
+
+  .featured-author {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: #6e6e6e;
+    margin: 0;
+    font-style: italic;
   }
 
   .rule-double {
@@ -1156,6 +1325,14 @@ const css = `
       padding: 32px 20px 60px;
     }
 
+    .featured-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .hero-title {
+      font-size: 32px;
+    }
+
     .card-grid {
       grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
       gap: 16px;
@@ -1184,34 +1361,40 @@ const css = `
       padding: 24px 16px 48px;
     }
 
-    .masthead h1 {
-      font-size: 20px;
+    .hero {
+      padding: 32px 0 24px;
     }
 
-    .masthead-sub {
-      font-size: 12px;
+    .hero-title {
+      font-size: 26px;
     }
 
-    .masthead-top {
+    .hero-sub {
+      font-size: 14px;
+    }
+
+    .featured-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .filter-bar {
+      flex-direction: column;
+      align-items: flex-start;
       gap: 8px;
     }
 
-    .search-line {
-      max-width: 100%;
+    .filter-left {
+      width: 100%;
     }
 
-    .search-line input {
-      font-size: 13px;
-    }
-
-    .genre-row {
-      gap: 6px;
-      margin: 16px 0 12px;
-    }
-
-    .genre-chip {
+    .genre-select {
       font-size: 10px;
-      padding: 4px 10px;
+      padding: 4px 28px 4px 10px;
+    }
+
+    .section-title {
+      font-size: 17px;
     }
 
     .card-grid {
@@ -1312,6 +1495,19 @@ const css = `
   }
 
   @media (max-width: 400px) {
+    .featured-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .featured-title {
+      font-size: 11px;
+    }
+
+    .featured-author {
+      font-size: 10px;
+    }
+
     .card-grid {
       grid-template-columns: 1fr 1fr;
       gap: 10px;
