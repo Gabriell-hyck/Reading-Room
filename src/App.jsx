@@ -168,6 +168,12 @@ export default function App() {
   const [translatedText, setTranslatedText] = useState({});
   const [translating, setTranslating] = useState(false);
 
+  const [fontSize, setFontSize] = useState(18);
+  const [readerTheme, setReaderTheme] = useState('light');
+
+  const [history, setHistory] = useState([]);
+  const [continueBooks, setContinueBooks] = useState([]);
+
   const fetchBooks = useCallback(
     async (reset) => {
       if (reset) setLoading(true);
@@ -204,6 +210,105 @@ export default function App() {
     fetchBooks(true);
   }, [query, genre]);
 
+  // Load history dari localStorage
+  useEffect(() => {
+    const savedHistory = localStorage.getItem('reading_history');
+    if (savedHistory) {
+      try {
+        const parsed = JSON.parse(savedHistory);
+        setHistory(parsed);
+        if (parsed.length > 0) {
+          setContinueBooks(parsed.slice(0, 4));
+        }
+      } catch (e) {
+        console.error('Failed to load history');
+      }
+    }
+  }, []);
+
+  // Simpan progress ke history
+  function saveProgress(book, chapterIdx, totalChapters) {
+    const existingIndex = history.findIndex(h => h.id === book.id);
+    const entry = {
+      id: book.id,
+      title: book.title,
+      author: book.authors && book.authors.length > 0 ? book.authors[0].name : 'Unknown',
+      cover: pickCoverUrl(book.formats),
+      lastChapter: chapterIdx + 1,
+      totalChapters: totalChapters,
+      progress: totalChapters > 0 ? Math.round(((chapterIdx + 1) / totalChapters) * 100) : 0,
+      timestamp: Date.now()
+    };
+
+    let newHistory;
+    if (existingIndex >= 0) {
+      newHistory = [...history];
+      newHistory[existingIndex] = entry;
+      newHistory = [entry, ...newHistory.filter(h => h.id !== book.id)];
+    } else {
+      newHistory = [entry, ...history];
+    }
+
+    if (newHistory.length > 20) {
+      newHistory = newHistory.slice(0, 20);
+    }
+
+    setHistory(newHistory);
+    setContinueBooks(newHistory.slice(0, 4));
+    localStorage.setItem('reading_history', JSON.stringify(newHistory));
+  }
+
+  function removeFromHistory(bookId) {
+    const newHistory = history.filter(h => h.id !== bookId);
+    setHistory(newHistory);
+    setContinueBooks(newHistory.slice(0, 4));
+    localStorage.setItem('reading_history', JSON.stringify(newHistory));
+  }
+
+  function increaseFont() {
+    if (fontSize < 26) setFontSize(fontSize + 1);
+  }
+
+  function decreaseFont() {
+    if (fontSize > 14) setFontSize(fontSize - 1);
+  }
+
+  function toggleTheme() {
+    const themes = ['light', 'sepia', 'dark'];
+    const currentIndex = themes.indexOf(readerTheme);
+    const nextIndex = (currentIndex + 1) % themes.length;
+    setReaderTheme(themes[nextIndex]);
+  }
+
+  function getThemeStyles() {
+    switch(readerTheme) {
+      case 'sepia':
+        return { 
+          background: '#faf0e6', 
+          color: '#4a3728', 
+          borderColor: '#d4c5a0',
+          progressTrack: '#e8ddd0',
+          metaColor: '#8a7a6a'
+        };
+      case 'dark':
+        return { 
+          background: '#1a1a1a', 
+          color: '#e0e0e0', 
+          borderColor: '#333333',
+          progressTrack: '#333333',
+          metaColor: '#888888'
+        };
+      default:
+        return { 
+          background: '#ffffff', 
+          color: '#1a1a1a', 
+          borderColor: '#e8e8e8',
+          progressTrack: '#e8e8e8',
+          metaColor: '#888888'
+        };
+    }
+  }
+
   async function openBook(book) {
     setSelectedBook(book);
     setView("reader");
@@ -220,6 +325,11 @@ export default function App() {
       const parsed = splitChapters(cachedText);
       setChapters(parsed);
       setTextLoading(false);
+      
+      const historyEntry = history.find(h => h.id === book.id);
+      if (historyEntry && historyEntry.lastChapter <= parsed.length) {
+        setChapterIndex(historyEntry.lastChapter - 1);
+      }
       return;
     }
 
@@ -231,6 +341,11 @@ export default function App() {
       localStorage.setItem(`book_${book.id}`, cleaned);
       const parsed = splitChapters(cleaned);
       setChapters(parsed);
+      
+      const historyEntry = history.find(h => h.id === book.id);
+      if (historyEntry && historyEntry.lastChapter <= parsed.length) {
+        setChapterIndex(historyEntry.lastChapter - 1);
+      }
     } catch (e) {
       setTextError("This book's text could not be loaded right now. Try another title.");
     } finally {
@@ -239,6 +354,10 @@ export default function App() {
   }
 
   function backToCatalog() {
+    if (selectedBook && chapters.length > 0) {
+      saveProgress(selectedBook, chapterIndex, chapters.length);
+    }
+    
     setView("catalog");
     setSelectedBook(null);
     setChapters([]);
@@ -252,12 +371,24 @@ export default function App() {
     setChapterIndex(i);
     setMenuOpen(false);
     setShowTranslation(false);
-    window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
+    
+    if (selectedBook && chapters.length > 0) {
+      saveProgress(selectedBook, i, chapters.length);
+    }
+    
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function handleSearchSubmit(e) {
     e.preventDefault();
     setQuery(searchInput.trim());
+  }
+
+  function scrollToAllBooks() {
+    const section = document.querySelector('#all-books');
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth' });
+    }
   }
 
   async function handleTranslate() {
@@ -289,6 +420,8 @@ export default function App() {
     setShowTranslation(!showTranslation);
   }
 
+  const theme = getThemeStyles();
+
   return (
     <div style={styles.root}>
       <style>{css}</style>
@@ -298,9 +431,9 @@ export default function App() {
           {/* HERO SECTION */}
           <section className="hero">
             <div className="hero-content">
-              <span className="hero-badge">your place to</span>
+              <span className="hero-badge">public domain library</span>
               <h1 className="hero-title">Discover Lost Classics</h1>
-              <p className="hero-sub">Thousands of public books, free to read. Philosophy, fiction, poetry, and more.</p>
+              <p className="hero-sub">Thousands of public domain books, free to read. Philosophy, fiction, poetry, and more.</p>
               <form className="hero-search" onSubmit={handleSearchSubmit}>
                 <Search size={18} strokeWidth={2} />
                 <input
@@ -317,6 +450,70 @@ export default function App() {
               </form>
             </div>
           </section>
+
+          {/* CONTINUE READING */}
+          {!loading && !error && continueBooks.length > 0 && (
+            <>
+              <div className="section-header">
+                <h2 className="section-title">Continue Reading</h2>
+                {history.length > 4 && (
+                  <button className="section-more-btn" onClick={scrollToAllBooks}>
+                    View all →
+                  </button>
+                )}
+              </div>
+              <div className="continue-grid">
+                {continueBooks.map((book) => (
+                  <div 
+                    className="continue-card" 
+                    key={book.id} 
+                    onClick={() => {
+                      fetch(`https://gutendex.com/books/${book.id}`)
+                        .then(res => res.json())
+                        .then(data => {
+                          if (data && data.id) {
+                            openBook(data);
+                          }
+                        })
+                        .catch(err => console.error('Failed to fetch book:', err));
+                    }}
+                  >
+                    <div className="continue-cover">
+                      {book.cover ? (
+                        <img src={book.cover} alt={book.title} loading="lazy" />
+                      ) : (
+                        <div className="continue-placeholder">{book.title.charAt(0)}</div>
+                      )}
+                    </div>
+                    <div className="continue-info">
+                      <h3 className="continue-title">{book.title}</h3>
+                      <p className="continue-author">{book.author}</p>
+                      <div className="continue-progress">
+                        <div className="continue-progress-track">
+                          <div 
+                            className="continue-progress-fill" 
+                            style={{ width: `${book.progress}%` }}
+                          />
+                        </div>
+                        <span className="continue-progress-text">{book.progress}%</span>
+                      </div>
+                      <p className="continue-chapter">Chapter {book.lastChapter} of {book.totalChapters}</p>
+                    </div>
+                    <button 
+                      className="continue-remove"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeFromHistory(book.id);
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="rule-double" />
+            </>
+          )}
 
           {/* FILTER & COUNT */}
           <div className="filter-bar">
@@ -358,7 +555,9 @@ export default function App() {
             <>
               <div className="section-header">
                 <h2 className="section-title">Featured Books</h2>
-                <span className="section-more">Browse all →</span>
+                <button className="section-more-btn" onClick={scrollToAllBooks}>
+                  Browse all →
+                </button>
               </div>
               <div className="featured-grid">
                 {books.slice(0, 4).map((book) => {
@@ -387,7 +586,7 @@ export default function App() {
           {/* ALL BOOKS GRID */}
           {!loading && !error && books.length > 0 && (
             <>
-              <div className="section-header">
+              <div className="section-header all-books-section" id="all-books">
                 <h2 className="section-title">All Books</h2>
               </div>
               <div className="card-grid">
@@ -455,81 +654,65 @@ export default function App() {
       )}
 
       {view === "reader" && selectedBook && (
-        <div className="reader">
-          <div className="reader-bar">
-            <button className="back-btn" onClick={backToCatalog}>
-              <ArrowLeft size={16} />
-              CATALOG
-            </button>
-            <div className="reader-title">{selectedBook.title}</div>
-            <div className="chapter-menu-wrap">
-              <button
-                className="chapter-menu-btn"
-                onClick={() => setMenuOpen((v) => !v)}
-                disabled={chapters.length === 0}
-              >
-                CHAPTERS
-                <ChevronDown size={14} />
+        <div className="reader-wrapper" style={{ backgroundColor: theme.background }}>
+          {/* READER HEADER */}
+          <div className="reader-header" style={{ backgroundColor: theme.background, borderBottom: `1px solid ${theme.borderColor}` }}>
+            <div className="reader-header-top">
+              <button className="reader-back" onClick={backToCatalog} style={{ color: theme.color }}>
+                <ArrowLeft size={18} />
+                <span>Library</span>
               </button>
-              {menuOpen && (
-                <div className="chapter-menu">
-                  {chapters.map((c, i) => (
-                    <button
-                      key={i}
-                      className={"chapter-menu-item" + (i === chapterIndex ? " active" : "")}
-                      onClick={() => goToChapter(i)}
-                    >
-                      {c.title}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <span className="reader-header-title" style={{ color: theme.color }}>{selectedBook.title}</span>
+              <div className="reader-header-actions">
+                <button className="reader-chapter-btn" onClick={() => setMenuOpen(!menuOpen)} disabled={chapters.length === 0} style={{ color: theme.color, borderColor: theme.borderColor }}>
+                  {chapters.length > 0 ? `${chapterIndex + 1}/${chapters.length}` : '0/0'}
+                  <ChevronDown size={14} />
+                </button>
+                {menuOpen && (
+                  <div className="chapter-menu-dropdown" style={{ backgroundColor: theme.background, borderColor: theme.borderColor }}>
+                    {chapters.map((c, i) => (
+                      <button
+                        key={i}
+                        className={"chapter-menu-item" + (i === chapterIndex ? " active" : "")}
+                        onClick={() => goToChapter(i)}
+                        style={i === chapterIndex ? { background: theme.color, color: theme.background } : { color: theme.color }}
+                      >
+                        {c.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="reader-actions">
-              <button 
-                className={"translate-btn" + (showTranslation ? " translated" : "")}
-                onClick={showTranslation ? toggleTranslation : handleTranslate}
-                disabled={translating || chapters.length === 0}
-              >
-                {translating ? 'Translating...' : showTranslation ? 'Show Original' : 'Translate to Indonesian'}
-              </button>
+            <div className="reader-progress">
+              <div className="reader-progress-track" style={{ backgroundColor: theme.progressTrack }}>
+                <div 
+                  className="reader-progress-fill" 
+                  style={{ 
+                    width: chapters.length > 0 ? `${((chapterIndex + 1) / chapters.length) * 100}%` : '0%',
+                    backgroundColor: theme.color
+                  }} 
+                />
+              </div>
             </div>
           </div>
 
-          <div className="progress-container">
-            <div className="progress-track">
-              <div 
-                className="progress-fill" 
-                style={{ 
-                  width: chapters.length > 0 ? `${((chapterIndex + 1) / chapters.length) * 100}%` : '0%' 
-                }} 
-              />
-            </div>
-            <span className="progress-text">
-              {chapters.length > 0 ? `${chapterIndex + 1}/${chapters.length}` : '0/0'}
-            </span>
-          </div>
-
-          <div className="rule-double" />
-
-          <div className="reader-body">
+          {/* READER BODY */}
+          <div className="reader-body" style={{ backgroundColor: theme.background }}>
             {textLoading && (
-              <p className="status-line">
-                Loading text... this might take a minute for big books.
-                <span className="loading-dots">
-                  <span></span><span></span><span></span>
-                </span>
-              </p>
+              <div className="reader-loading">
+                <p style={{ color: theme.metaColor }}>Loading text...</p>
+                <span className="loading-dots"><span></span><span></span><span></span></span>
+              </div>
             )}
-            {textError && <p className="status-line error">{textError}</p>}
+            {textError && <p className="reader-error" style={{ color: theme.color }}>{textError}</p>}
 
             {!textLoading && !textError && chapters.length > 0 && (
-              <>
-                <p className="chapter-eyebrow">
-                  {chapterIndex + 1} OF {chapters.length}
-                </p>
-                <h2 className="chapter-title">{chapters[chapterIndex].title}</h2>
-                <div className="chapter-text">
+              <div className="reader-content">
+                <div className="reader-chapter-label" style={{ color: theme.metaColor }}>
+                  {chapters[chapterIndex].title}
+                </div>
+                <div className="reader-text" style={{ fontSize: `${fontSize}px`, color: theme.color }}>
                   {(() => {
                     const currentChapter = chapters[chapterIndex];
                     const displayText = showTranslation && translatedText[currentChapter.title] 
@@ -544,23 +727,61 @@ export default function App() {
                       ));
                   })()}
                 </div>
-
-                <div className="chapter-nav">
-                  <button
-                    disabled={chapterIndex === 0}
-                    onClick={() => goToChapter(chapterIndex - 1)}
-                  >
-                    ← Previous
-                  </button>
-                  <button
-                    disabled={chapterIndex === chapters.length - 1}
-                    onClick={() => goToChapter(chapterIndex + 1)}
-                  >
-                    Next →
-                  </button>
-                </div>
-              </>
+              </div>
             )}
+          </div>
+
+          {/* READER FOOTER */}
+          <div className="reader-footer" style={{ backgroundColor: theme.background, borderTop: `1px solid ${theme.borderColor}` }}>
+            <div className="reader-controls">
+              <div className="reader-controls-left">
+                <button 
+                  className="reader-nav-btn" 
+                  onClick={() => goToChapter(chapterIndex - 1)} 
+                  disabled={chapterIndex === 0}
+                  style={{ color: theme.color, borderColor: theme.borderColor }}
+                >
+                  ←
+                </button>
+                <span className="reader-page-info" style={{ color: theme.metaColor }}>
+                  {chapterIndex + 1} / {chapters.length}
+                </span>
+                <button 
+                  className="reader-nav-btn" 
+                  onClick={() => goToChapter(chapterIndex + 1)} 
+                  disabled={chapterIndex === chapters.length - 1}
+                  style={{ color: theme.color, borderColor: theme.borderColor }}
+                >
+                  →
+                </button>
+              </div>
+              <div className="reader-controls-center">
+                <button className="reader-font-btn" onClick={decreaseFont} disabled={fontSize <= 14} style={{ color: theme.color, borderColor: theme.borderColor }}>
+                  A−
+                </button>
+                <span className="reader-font-size" style={{ color: theme.metaColor }}>{fontSize}</span>
+                <button className="reader-font-btn" onClick={increaseFont} disabled={fontSize >= 26} style={{ color: theme.color, borderColor: theme.borderColor }}>
+                  A+
+                </button>
+              </div>
+              <div className="reader-controls-right">
+                <button 
+                  className="reader-theme-btn" 
+                  onClick={toggleTheme}
+                  style={{ color: theme.color, borderColor: theme.borderColor }}
+                >
+                  {readerTheme === 'light' ? '' : readerTheme === 'sepia' ? '' : ''}
+                </button>
+                <button 
+                  className="reader-translate-btn"
+                  onClick={showTranslation ? toggleTranslation : handleTranslate}
+                  disabled={translating || chapters.length === 0}
+                  style={{ color: theme.color, borderColor: theme.borderColor }}
+                >
+                  {translating ? '...' : showTranslation ? 'EN' : 'ID'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -600,7 +821,7 @@ const css = `
     to { transform: rotate(-1deg) scale(1); opacity: 1; }
   }
 
-  .catalog, .reader {
+  .catalog, .reader-wrapper {
     max-width: 1040px;
     margin: 0 auto;
     padding: 40px 24px 80px;
@@ -609,11 +830,6 @@ const css = `
   }
 
   ::selection {
-    background: #0d0d0d;
-    color: #ffffff;
-  }
-
-  .chapter-text p::selection {
     background: #0d0d0d;
     color: #ffffff;
   }
@@ -685,6 +901,149 @@ const css = `
     cursor: pointer;
     color: #6e6e6e;
     padding: 2px;
+  }
+
+  /* CONTINUE READING */
+  .continue-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+
+  .continue-card {
+    display: flex;
+    gap: 12px;
+    border: 1px solid #e8e8e8;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #ffffff;
+    position: relative;
+    border-radius: 4px;
+    align-items: center;
+  }
+
+  .continue-card:hover {
+    border-color: #0d0d0d;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  }
+
+  .continue-cover {
+    width: 48px;
+    height: 64px;
+    flex-shrink: 0;
+    background: #f5f5f5;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .continue-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .continue-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: #d0d0d0;
+    background: #f5f5f5;
+  }
+
+  .continue-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .continue-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 2px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .continue-author {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: #6e6e6e;
+    margin: 0 0 6px;
+    font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .continue-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .continue-progress-track {
+    flex: 1;
+    height: 3px;
+    background: #e8e8e8;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .continue-progress-fill {
+    height: 100%;
+    background: #0d0d0d;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+
+  .continue-progress-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: #6e6e6e;
+    min-width: 32px;
+    text-align: right;
+  }
+
+  .continue-chapter {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    color: #9a9a9a;
+    margin: 2px 0 0;
+  }
+
+  .continue-remove {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: #b0b0b0;
+    font-size: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    padding: 0;
+    line-height: 1;
+  }
+
+  .continue-remove:hover {
+    background: #f0f0f0;
+    color: #0d0d0d;
   }
 
   /* FILTER BAR */
@@ -766,15 +1125,19 @@ const css = `
     margin: 0;
   }
 
-  .section-more {
+  .section-more-btn {
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
     color: #6e6e6e;
     cursor: pointer;
     letter-spacing: 0.04em;
+    border: none;
+    background: none;
+    padding: 0;
+    transition: color 0.15s ease;
   }
 
-  .section-more:hover {
+  .section-more-btn:hover {
     color: #0d0d0d;
   }
 
@@ -1091,199 +1454,205 @@ const css = `
 
   .load-more-btn:disabled { color: #9a9a9a; border-color: #9a9a9a; cursor: default; }
 
-  .reader-bar {
+  /* READER - GOOGLE PLAY STYLE */
+  .reader-wrapper {
+    padding: 0;
+    max-width: 100%;
+    min-height: 100vh;
     display: flex;
-    align-items: center;
-    gap: 20px;
-    flex-wrap: wrap;
+    flex-direction: column;
   }
 
-  .back-btn {
+  .reader-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 12px 24px 0;
+  }
+
+  .reader-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 10px;
+  }
+
+  .reader-back {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    letter-spacing: 0.05em;
-    border: 1px solid #0d0d0d;
-    background: #ffffff;
-    padding: 8px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+    background: none;
     cursor: pointer;
-    transition: all 0.15s ease;
+    padding: 4px 0;
+    color: #1a1a1a;
+    transition: opacity 0.15s ease;
   }
 
-  .back-btn:hover {
-    background: #0d0d0d;
-    color: #ffffff;
+  .reader-back:hover {
+    opacity: 0.6;
   }
 
-  .reader-title {
-    font-family: 'Playfair Display', serif;
-    font-weight: 600;
-    font-size: 16px;
+  .reader-header-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
     flex: 1;
     text-align: center;
-    min-width: 160px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .chapter-menu-wrap {
+  .reader-header-actions {
     position: relative;
-  }
-
-  .chapter-menu-btn {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .reader-chapter-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'Inter', sans-serif;
     font-size: 12px;
-    letter-spacing: 0.05em;
-    border: 1px solid #0d0d0d;
-    background: #ffffff;
-    padding: 8px 12px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-
-  .chapter-menu-btn:hover:not(:disabled) {
-    background: #0d0d0d;
-    color: #ffffff;
-  }
-
-  .chapter-menu-btn:disabled { color: #9a9a9a; border-color: #cfcfcf; cursor: default; }
-
-  .chapter-menu {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 6px);
-    background: #ffffff;
-    border: 1px solid #0d0d0d;
-    max-height: 320px;
-    overflow-y: auto;
-    width: 260px;
-    z-index: 10;
-    animation: slideDown 0.2s ease both;
-  }
-
-  .chapter-menu-item {
-    display: block;
-    width: 100%;
-    text-align: left;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    border: 1px solid #e8e8e8;
     background: none;
-    border: none;
-    border-bottom: 1px solid #ececec;
-    padding: 10px 12px;
+    padding: 4px 12px;
     cursor: pointer;
-    transition: all 0.15s ease;
-  }
-
-  .chapter-menu-item.active { background: #0d0d0d; color: #ffffff; }
-  .chapter-menu-item:hover:not(.active) { background: #f2f2f2; }
-
-  .reader-actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-
-  .translate-btn {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 0.05em;
-    border: 1px solid #0d0d0d;
-    background: #ffffff;
-    padding: 6px 14px;
-    cursor: pointer;
+    border-radius: 4px;
+    color: #1a1a1a;
     transition: all 0.15s ease;
     white-space: nowrap;
   }
 
-  .translate-btn:hover:not(:disabled) {
-    background: #0d0d0d;
-    color: #ffffff;
+  .reader-chapter-btn:hover:not(:disabled) {
+    background: #f0f0f0;
   }
 
-  .translate-btn:disabled {
-    color: #9a9a9a;
-    border-color: #cfcfcf;
+  .reader-chapter-btn:disabled {
+    opacity: 0.4;
     cursor: default;
   }
 
-  .translate-btn.translated {
-    background: #0d0d0d;
-    color: #ffffff;
+  .chapter-menu-dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    background: #ffffff;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    max-height: 320px;
+    overflow-y: auto;
+    width: 240px;
+    z-index: 20;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
   }
 
-  .progress-container {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+  .chapter-menu-dropdown .chapter-menu-item {
+    display: block;
     width: 100%;
-    margin-top: 12px;
-    margin-bottom: 4px;
+    text-align: left;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid #f0f0f0;
+    padding: 10px 16px;
+    cursor: pointer;
+    color: #1a1a1a;
+    transition: all 0.1s ease;
   }
 
-  .progress-track {
-    flex: 1;
-    height: 4px;
+  .chapter-menu-dropdown .chapter-menu-item:last-child {
+    border-bottom: none;
+  }
+
+  .chapter-menu-dropdown .chapter-menu-item:hover:not(.active) {
+    background: #f5f5f5;
+  }
+
+  .chapter-menu-dropdown .chapter-menu-item.active {
+    background: #1a1a1a;
+    color: #ffffff;
+    border-radius: 8px 8px 0 0;
+  }
+
+  .reader-progress {
+    padding: 0 0 12px;
+  }
+
+  .reader-progress-track {
+    width: 100%;
+    height: 3px;
     background: #e8e8e8;
     border-radius: 2px;
     overflow: hidden;
   }
 
-  .progress-fill {
+  .reader-progress-fill {
     height: 100%;
-    background: #0d0d0d;
+    background: #1a1a1a;
     transition: width 0.3s ease;
     border-radius: 2px;
   }
 
-  .progress-text {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    color: #6e6e6e;
-    white-space: nowrap;
-    min-width: 40px;
-    text-align: right;
+  .reader-body {
+    padding: 24px 24px 120px;
+    min-height: 70vh;
+    flex: 1;
   }
 
-  .reader-body {
+  .reader-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: #888;
+    justify-content: center;
+    padding: 60px 0;
+  }
+
+  .reader-error {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: #1a1a1a;
+    text-align: center;
+    padding: 60px 0;
+  }
+
+  .reader-content {
     max-width: 680px;
     margin: 0 auto;
-    padding: 0 8px;
   }
 
-  .chapter-eyebrow {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 0.12em;
+  .reader-chapter-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
     text-transform: uppercase;
-    color: #6e6e6e;
-    text-align: center;
+    letter-spacing: 0.06em;
+    color: #888;
     margin-bottom: 8px;
   }
 
-  .chapter-title {
-    font-family: 'Playfair Display', serif;
-    font-weight: 600;
-    font-size: 28px;
-    text-align: center;
-    margin: 0 0 36px;
-    letter-spacing: -0.01em;
+  .reader-text {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    line-height: 1.8;
   }
 
-  .chapter-text p {
-    font-family: 'Inter', sans-serif;
-    font-size: 17px;
-    line-height: 1.8;
-    margin: 0 0 20px;
+  .reader-text p {
+    margin: 0 0 1.2em;
     text-align: justify;
   }
 
-  .chapter-text p:first-of-type::first-letter {
-    font-family: 'Playfair Display', serif;
-    font-size: 48px;
+  .reader-text p:first-of-type::first-letter {
+    font-size: 3.2em;
     float: left;
     line-height: 1;
     margin-right: 6px;
@@ -1291,37 +1660,129 @@ const css = `
     font-weight: 600;
   }
 
-  .chapter-nav {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 48px;
-    padding-top: 24px;
-    border-top: 2px solid #0d0d0d;
+  .reader-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 24px;
+    background: #ffffff;
+    border-top: 1px solid #e8e8e8;
+    z-index: 10;
   }
 
-  .chapter-nav button {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    border: 1px solid #0d0d0d;
-    background: #ffffff;
-    padding: 10px 20px;
+  .reader-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 680px;
+    margin: 0 auto;
+  }
+
+  .reader-controls-left,
+  .reader-controls-center,
+  .reader-controls-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .reader-nav-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 18px;
+    border: 1px solid #e8e8e8;
+    background: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1a1a1a;
     transition: all 0.15s ease;
   }
 
-  .chapter-nav button:hover:not(:disabled) {
-    background: #0d0d0d;
-    color: #ffffff;
+  .reader-nav-btn:hover:not(:disabled) {
+    background: #f0f0f0;
   }
 
-  .chapter-nav button:disabled {
-    color: #b0b0b0;
-    border-color: #d0d0d0;
+  .reader-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+
+  .reader-page-info {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    color: #888;
+    min-width: 56px;
+    text-align: center;
+  }
+
+  .reader-font-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid #e8e8e8;
+    background: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    color: #1a1a1a;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .reader-font-btn:hover:not(:disabled) {
+    background: #f0f0f0;
+  }
+
+  .reader-font-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+
+  .reader-font-size {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    color: #888;
+    min-width: 24px;
+    text-align: center;
+  }
+
+  .reader-theme-btn,
+  .reader-translate-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    border: 1px solid #e8e8e8;
+    background: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    color: #1a1a1a;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .reader-theme-btn:hover,
+  .reader-translate-btn:hover:not(:disabled) {
+    background: #f0f0f0;
+  }
+
+  .reader-translate-btn:disabled {
+    opacity: 0.3;
     cursor: default;
   }
 
   @media (max-width: 820px) {
-    .catalog, .reader {
+    .catalog {
       padding: 32px 20px 60px;
     }
 
@@ -1343,21 +1804,12 @@ const css = `
     }
 
     .reader-body {
-      max-width: 100%;
-      padding: 0 4px;
-    }
-
-    .chapter-title {
-      font-size: 24px;
-    }
-
-    .chapter-text p {
-      font-size: 16px;
+      padding: 16px 16px 100px;
     }
   }
 
   @media (max-width: 640px) {
-    .catalog, .reader {
+    .catalog {
       padding: 24px 16px 48px;
     }
 
@@ -1376,6 +1828,24 @@ const css = `
     .featured-grid {
       grid-template-columns: repeat(2, 1fr);
       gap: 10px;
+    }
+
+    .continue-grid {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .continue-card {
+      padding: 10px;
+    }
+
+    .continue-cover {
+      width: 40px;
+      height: 56px;
+    }
+
+    .continue-title {
+      font-size: 12px;
     }
 
     .filter-bar {
@@ -1429,68 +1899,71 @@ const css = `
       margin-top: 4px;
     }
 
-    .reader-bar {
-      gap: 12px;
+    .reader-header {
+      padding: 8px 16px 0;
     }
 
-    .reader-title {
-      order: -1;
-      width: 100%;
-      text-align: left;
-      font-size: 14px;
-    }
-
-    .back-btn, .chapter-menu-btn {
-      font-size: 10px;
-      padding: 6px 10px;
-    }
-
-    .translate-btn {
-      font-size: 9px;
-      padding: 4px 10px;
-    }
-
-    .chapter-title {
-      font-size: 20px;
-      margin-bottom: 24px;
-    }
-
-    .chapter-text p {
-      font-size: 15px;
-      line-height: 1.7;
-      text-align: left;
-    }
-
-    .chapter-text p:first-of-type::first-letter {
-      font-size: 36px;
-      margin-right: 4px;
-    }
-
-    .chapter-nav {
-      flex-direction: column;
-      gap: 8px;
-      margin-top: 32px;
-      padding-top: 16px;
-    }
-
-    .chapter-nav button {
-      width: 100%;
-      text-align: center;
-      padding: 10px;
+    .reader-header-title {
       font-size: 12px;
     }
 
-    .rule-double {
-      margin: 8px 0 20px;
+    .reader-back span {
+      display: none;
     }
 
-    .progress-container {
-      margin-top: 8px;
+    .reader-chapter-btn {
+      font-size: 11px;
+      padding: 3px 10px;
     }
 
-    .progress-text {
-      font-size: 10px;
-      min-width: 32px;
+    .reader-body {
+      padding: 16px 16px 100px;
+    }
+
+    .reader-text {
+      font-size: 16px;
+    }
+
+    .reader-text p:first-of-type::first-letter {
+      font-size: 2.6em;
+    }
+
+    .reader-footer {
+      padding: 10px 16px;
+    }
+
+    .reader-nav-btn {
+      width: 32px;
+      height: 32px;
+      font-size: 16px;
+    }
+
+    .reader-font-btn {
+      width: 28px;
+      height: 28px;
+      font-size: 12px;
+    }
+
+    .reader-theme-btn,
+    .reader-translate-btn {
+      width: 32px;
+      height: 32px;
+      font-size: 12px;
+    }
+
+    .reader-page-info {
+      font-size: 11px;
+      min-width: 44px;
+    }
+
+    .reader-font-size {
+      font-size: 11px;
+      min-width: 20px;
+    }
+
+    .chapter-menu-dropdown {
+      width: 200px;
+      right: -10px;
     }
   }
 
@@ -1543,10 +2016,6 @@ const css = `
     .stamp-btn {
       font-size: 9px;
       padding: 3px 8px;
-    }
-
-    .chapter-text p {
-      font-size: 14px;
     }
   }
 `;
