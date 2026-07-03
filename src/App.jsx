@@ -298,9 +298,9 @@ export default function App() {
           {/* HERO SECTION */}
           <section className="hero">
             <div className="hero-content">
-              <span className="hero-badge">public domain library</span>
+              <span className="hero-badge">your place to</span>
               <h1 className="hero-title">Discover Lost Classics</h1>
-              <p className="hero-sub">Thousands of public domain books, free to read. Philosophy, fiction, poetry, and more.</p>
+              <p className="hero-sub">Thousands of public books, free to read. Philosophy, fiction, poetry, and more.</p>
               <form className="hero-search" onSubmit={handleSearchSubmit}>
                 <Search size={18} strokeWidth={2} />
                 <input
