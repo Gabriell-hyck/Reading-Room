@@ -680,7 +680,7 @@ export default function App() {
               </div>
             </div>
             <div className="footer-bottom">
-              <p>All books are in the public domain. Built with React + Gutendex API.</p>
+              <p>The Reading Room All Right Reserved. Made with Gutendex API©.</p>
               <p className="footer-copy">&copy; {new Date().getFullYear()} The Reading Room</p>
             </div>
           </footer>
