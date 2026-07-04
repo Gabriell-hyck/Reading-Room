@@ -650,6 +650,40 @@ export default function App() {
               </button>
             </div>
           )}
+
+          {/* FOOTER */}
+          <footer className="site-footer">
+            <div className="footer-content">
+              <div className="footer-brand">
+                <span className="footer-logo">The Reading Room</span>
+                <p className="footer-tagline">Your place to find lost knowledge</p>
+              </div>
+              <div className="footer-links">
+                <div className="footer-column">
+                  <h4>Browse</h4>
+                  <a href="#" onClick={() => setGenre("All")}>All Books</a>
+                  <a href="#" onClick={() => setGenre("Fiction")}>Fiction</a>
+                  <a href="#" onClick={() => setGenre("Philosophy")}>Philosophy</a>
+                  <a href="#" onClick={() => setGenre("Poetry")}>Poetry</a>
+                </div>
+                <div className="footer-column">
+                  <h4>Info</h4>
+                  <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>About</a>
+                  <a href="https://gutendex.com" target="_blank" rel="noopener noreferrer">Gutendex API</a>
+                  <a href="https://www.gutenberg.org" target="_blank" rel="noopener noreferrer">Project Gutenberg</a>
+                </div>
+                <div className="footer-column">
+                  <h4>Connect</h4>
+                  <a href="https://github.com/Gabriell-hyck/Reading-Room" target="_blank" rel="noopener noreferrer">GitHub</a>
+                  <a href="#" onClick={(e) => { e.preventDefault(); }}>Contact</a>
+                </div>
+              </div>
+            </div>
+            <div className="footer-bottom">
+              <p>All books are in the public domain. Built with React + Gutendex API.</p>
+              <p className="footer-copy">&copy; {new Date().getFullYear()} The Reading Room</p>
+            </div>
+          </footer>
         </div>
       )}
 
@@ -770,7 +804,7 @@ export default function App() {
                   onClick={toggleTheme}
                   style={{ color: theme.color, borderColor: theme.borderColor }}
                 >
-                  {readerTheme === 'light' ? '' : readerTheme === 'sepia' ? '' : ''}
+                  {readerTheme === 'light' ? '☀' : readerTheme === 'sepia' ? '🕯' : '🌙'}
                 </button>
                 <button 
                   className="reader-translate-btn"
@@ -821,7 +855,7 @@ const css = `
     to { transform: rotate(-1deg) scale(1); opacity: 1; }
   }
 
-  .catalog, .reader-wrapper {
+  .catalog {
     max-width: 1040px;
     margin: 0 auto;
     padding: 40px 24px 80px;
@@ -1244,42 +1278,29 @@ const css = `
   .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
   .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
 
+  /* CARD GRID - OPSI 1 */
   .card-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 24px;
   }
 
   .card {
     position: relative;
-    border: 1px solid #0d0d0d;
+    border: 1px solid #e8e8e8;
     padding: 16px 16px 16px;
     background: #ffffff;
     display: flex;
     flex-direction: column;
-    min-height: 340px;
-    animation: fadeIn 0.4s ease both;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    border-radius: 2px;
+    transition: all 0.25s ease;
+    border-radius: 6px;
   }
 
   .card:hover {
+    border-color: #0d0d0d;
     transform: translateY(-6px);
     box-shadow: 0 12px 32px rgba(0,0,0,0.06);
   }
-
-  .card:nth-child(1) { animation-delay: 0.00s; }
-  .card:nth-child(2) { animation-delay: 0.04s; }
-  .card:nth-child(3) { animation-delay: 0.08s; }
-  .card:nth-child(4) { animation-delay: 0.12s; }
-  .card:nth-child(5) { animation-delay: 0.16s; }
-  .card:nth-child(6) { animation-delay: 0.20s; }
-  .card:nth-child(7) { animation-delay: 0.24s; }
-  .card:nth-child(8) { animation-delay: 0.28s; }
-  .card:nth-child(9) { animation-delay: 0.32s; }
-  .card:nth-child(10) { animation-delay: 0.36s; }
-  .card:nth-child(11) { animation-delay: 0.40s; }
-  .card:nth-child(12) { animation-delay: 0.44s; }
 
   .card-punch {
     position: absolute;
@@ -1289,7 +1310,7 @@ const css = `
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    border: 1px solid #0d0d0d;
+    border: 1px solid #d0d0d0;
     background: #ffffff;
     transition: background 0.2s ease;
   }
@@ -1301,19 +1322,15 @@ const css = `
   .card-cover-wrap {
     width: 100%;
     aspect-ratio: 2/3;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
     background: #f5f5f5;
-    border: 1px solid #e8e8e8;
-    border-radius: 2px;
+    border-radius: 4px;
     overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: border-color 0.2s ease;
+    transition: all 0.2s ease;
   }
 
   .card:hover .card-cover-wrap {
-    border-color: #0d0d0d;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
   }
 
   .card-cover {
@@ -1347,31 +1364,30 @@ const css = `
     font-family: 'JetBrains Mono', monospace;
     font-size: 9px;
     letter-spacing: 0.06em;
-    color: #6e6e6e;
+    color: #9a9a9a;
     text-align: right;
-    margin-bottom: 6px;
-    margin-top: 6px;
+    margin-bottom: 4px;
   }
 
   .card-title {
     font-family: 'Playfair Display', serif;
     font-weight: 600;
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1.3;
     margin: 0 0 2px;
   }
 
   .card-author {
-    font-family: 'Inter', serif;
+    font-family: 'Inter', sans-serif;
     font-style: italic;
     font-size: 12px;
     color: #6e6e6e;
-    margin: 0 0 8px;
+    margin: 0 0 10px;
   }
 
   .card-rule {
-    border-top: 1px dashed #b8b8b8;
-    margin-bottom: 8px;
+    border-top: 1px dashed #e8e8e8;
+    margin-bottom: 10px;
   }
 
   .card-tags {
@@ -1379,7 +1395,7 @@ const css = `
     flex-wrap: wrap;
     gap: 4px;
     flex: 1;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
   }
 
   .card-tag {
@@ -1389,36 +1405,37 @@ const css = `
     letter-spacing: 0.04em;
     color: #6e6e6e;
     border: 1px solid #e8e8e8;
-    padding: 2px 6px;
-    border-radius: 2px;
+    padding: 2px 8px;
+    border-radius: 3px;
     transition: all 0.15s ease;
   }
 
   .card:hover .card-tag {
-    border-color: #0d0d0d;
+    border-color: #d0d0d0;
   }
 
   .stamp-btn {
     align-self: flex-start;
     font-family: 'JetBrains Mono', monospace;
     font-weight: 700;
-    font-size: 12px;
+    font-size: 11px;
     letter-spacing: 0.08em;
     border: 2px solid #0d0d0d;
     background: #ffffff;
     color: #0d0d0d;
-    padding: 6px 14px;
+    padding: 5px 14px;
     cursor: pointer;
     transform: rotate(-1deg);
     transition: all 0.15s ease;
     animation: stampIn 0.5s ease both;
     animation-delay: 0.2s;
+    border-radius: 4px;
   }
 
   .stamp-btn:hover {
     background: #0d0d0d;
     color: #ffffff;
-    transform: rotate(0deg) scale(1.05);
+    transform: rotate(0deg) scale(1.04);
   }
 
   .stamp-btn:active {
@@ -1454,9 +1471,103 @@ const css = `
 
   .load-more-btn:disabled { color: #9a9a9a; border-color: #9a9a9a; cursor: default; }
 
+  /* FOOTER */
+  .site-footer {
+    margin-top: 60px;
+    padding: 48px 0 24px;
+    border-top: 2px solid #0d0d0d;
+    background: #ffffff;
+  }
+
+  .footer-content {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 48px;
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .footer-brand {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .footer-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 600;
+    color: #0d0d0d;
+  }
+
+  .footer-tagline {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: #6e6e6e;
+    margin: 0;
+    font-style: italic;
+  }
+
+  .footer-links {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+  }
+
+  .footer-column h4 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #0d0d0d;
+    margin: 0 0 12px;
+  }
+
+  .footer-column a {
+    display: block;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: #6e6e6e;
+    text-decoration: none;
+    padding: 4px 0;
+    transition: color 0.15s ease;
+    cursor: pointer;
+    background: none;
+    border: none;
+  }
+
+  .footer-column a:hover {
+    color: #0d0d0d;
+  }
+
+  .footer-bottom {
+    max-width: 1040px;
+    margin: 32px auto 0;
+    padding: 16px 24px 0;
+    border-top: 1px solid #e8e8e8;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .footer-bottom p {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    color: #9a9a9a;
+    margin: 0;
+  }
+
+  .footer-copy {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #9a9a9a;
+  }
+
   /* READER - GOOGLE PLAY STYLE */
   .reader-wrapper {
-    padding: 0;
     max-width: 100%;
     min-height: 100vh;
     display: flex;
@@ -1795,16 +1906,17 @@ const css = `
     }
 
     .card-grid {
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
       gap: 16px;
-    }
-
-    .card {
-      min-height: 280px;
     }
 
     .reader-body {
       padding: 16px 16px 100px;
+    }
+
+    .footer-content {
+      grid-template-columns: 1fr;
+      gap: 32px;
     }
   }
 
@@ -1868,18 +1980,18 @@ const css = `
     }
 
     .card-grid {
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
       gap: 12px;
     }
 
     .card {
-      min-height: 260px;
-      padding: 12px 12px 12px;
+      padding: 12px;
+      min-height: auto;
     }
 
     .card-cover-wrap {
       aspect-ratio: 2/3;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
 
     .card-cover-placeholder {
@@ -1887,7 +1999,7 @@ const css = `
     }
 
     .card-title {
-      font-size: 14px;
+      font-size: 13px;
     }
 
     .card-author {
@@ -1896,7 +2008,11 @@ const css = `
 
     .card-number {
       font-size: 8px;
-      margin-top: 4px;
+    }
+
+    .stamp-btn {
+      font-size: 10px;
+      padding: 4px 12px;
     }
 
     .reader-header {
@@ -1965,6 +2081,30 @@ const css = `
       width: 200px;
       right: -10px;
     }
+
+    .footer-content {
+      padding: 0 16px;
+      gap: 24px;
+    }
+
+    .footer-links {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .footer-column a {
+      font-size: 12px;
+    }
+
+    .footer-bottom {
+      flex-direction: column;
+      text-align: center;
+      padding: 12px 16px 0;
+    }
+
+    .footer-bottom p {
+      font-size: 11px;
+    }
   }
 
   @media (max-width: 400px) {
@@ -1987,13 +2127,12 @@ const css = `
     }
 
     .card {
-      min-height: 220px;
-      padding: 10px 10px 10px;
+      padding: 10px;
     }
 
     .card-cover-wrap {
       aspect-ratio: 2/3;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
 
     .card-cover-placeholder {
@@ -2010,12 +2149,17 @@ const css = `
 
     .card-tag {
       font-size: 7px;
-      padding: 1px 4px;
+      padding: 1px 6px;
     }
 
     .stamp-btn {
       font-size: 9px;
-      padding: 3px 8px;
+      padding: 3px 10px;
+    }
+
+    .footer-links {
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
     }
   }
 `;
