@@ -1029,7 +1029,6 @@ const css = `
     50% { opacity: 0.3; }
   }
 
-  /* BOOK GRID - RAPI */
   .book-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -1132,7 +1131,6 @@ const css = `
     color: var(--bg);
   }
 
-  /* FEATURED */
   .featured-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -1197,7 +1195,6 @@ const css = `
     font-style: italic;
   }
 
-  /* CONTINUE READING */
   .continue-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -1435,7 +1432,6 @@ const css = `
     color: var(--meta);
   }
 
-  /* READER */
   .reader-wrapper {
     max-width: 100%;
     min-height: 100vh;
